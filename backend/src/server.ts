@@ -9,6 +9,7 @@ import connectDB from './config/database';
 import { specs, swaggerUi } from './config/swagger';
 import { createAdminUser } from './utils/createAdmin';
 import { startLocationScheduler, startLocationHistoryCleanup } from './utils/locationScheduler';
+import { seedDatabase } from './utils/seedData';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -115,6 +116,19 @@ app.get('/', (req, res) => {
   });
 });
 
+// Seed database endpoint (development only)
+if (process.env.NODE_ENV === 'development') {
+  app.post('/api/seed', async (req, res) => {
+    try {
+      await seedDatabase();
+      res.json({ message: 'Database seeded successfully' });
+    } catch (error) {
+      console.error('Seeding error:', error);
+      res.status(500).json({ error: 'Failed to seed database' });
+    }
+  });
+}
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -142,6 +156,15 @@ const startServer = async () => {
     // Create admin user if not exists
     await createAdminUser();
     
+    // Check if we need to seed the database
+    const Bus = (await import('./models/Bus')).default;
+    const busCount = await Bus.countDocuments();
+    
+    if (busCount === 0) {
+      console.log('No buses found in database, seeding with sample data...');
+      await seedDatabase();
+    }
+    
     // Start background schedulers
     startLocationScheduler();
     startLocationHistoryCleanup();
@@ -152,6 +175,9 @@ const startServer = async () => {
       console.log(`🔍 Health Check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
       console.log(`📱 CORS enabled for mobile development`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🌱 Seed endpoint: POST http://localhost:${PORT}/api/seed`);
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);

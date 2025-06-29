@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Home, Map, Bus, Settings } from 'lucide-react-native';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -15,22 +16,22 @@ export default function TabLayout() {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
           borderTopWidth: 1,
-          paddingBottom: 0, // Remove extra bottom padding
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8, // Add extra padding for iPhone home indicator
           paddingTop: 8,
-          height: 'auto', // Let it size automatically
-          paddingHorizontal: 7, // Add horizontal padding for better spacing
+          height: Platform.OS === 'ios' ? 88 : 64, // Increase height for iOS
+          paddingHorizontal: 7,
           position: 'absolute',
-          bottom: 0, // Ensure it's at the bottom but above safe area
+          bottom: 0,
         },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarLabelStyle: {
           fontSize: 12,
           fontFamily: 'Inter-SemiBold',
-          marginBottom: 4, // Add margin to position label better
+          marginBottom: Platform.OS === 'ios' ? 4 : 4,
         },
         tabBarIconStyle: {
-          marginTop: 4, // Add margin to position icon better
+          marginTop: 4,
         },
       }}
     >
