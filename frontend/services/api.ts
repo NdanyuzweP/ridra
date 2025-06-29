@@ -6,6 +6,7 @@ class ApiService {
 
   constructor() {
     this.baseURL = getApiUrl();
+    console.log('API Service initialized with URL:', this.baseURL);
   }
 
   private async getAuthToken(): Promise<string | null> {
@@ -33,14 +34,20 @@ class ApiService {
       ...options,
     };
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, config);
+    const url = `${this.baseURL}${endpoint}`;
+    console.log(`API Request: ${options.method || 'GET'} ${url}`);
+
+    const response = await fetch(url, config);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`API Error: ${response.status}`, errorData);
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`API Response: ${options.method || 'GET'} ${endpoint}`, data);
+    return data;
   }
 
   // Authentication
@@ -90,7 +97,7 @@ class ApiService {
     }>('/auth/profile');
   }
 
-  // Buses
+  // Buses - using your existing database data
   async getBuses() {
     return this.request<{
       buses: Array<{
@@ -133,7 +140,7 @@ class ApiService {
     }>(`/buses/${id}`);
   }
 
-  // Bus Locations
+  // Bus Locations - using your existing database data
   async getAllBusLocations(routeId?: string, isOnline?: boolean) {
     const params = new URLSearchParams();
     if (routeId) params.append('routeId', routeId);
@@ -205,7 +212,7 @@ class ApiService {
     }>(`/bus-locations/nearby/search?${params.toString()}`);
   }
 
-  // Routes
+  // Routes - using your existing database data
   async getRoutes() {
     return this.request<{
       routes: Array<{
@@ -232,7 +239,7 @@ class ApiService {
     }>(`/routes/${id}`);
   }
 
-  // Pickup Points
+  // Pickup Points - using your existing database data
   async getPickupPoints(routeId?: string) {
     const params = routeId ? `?routeId=${routeId}` : '';
     return this.request<{
@@ -249,7 +256,7 @@ class ApiService {
     }>(`/pickup-points${params}`);
   }
 
-  // Bus Schedules
+  // Bus Schedules - using your existing database data
   async getBusSchedules(status?: string, routeId?: string, date?: string) {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
@@ -290,7 +297,7 @@ class ApiService {
     }>(`/bus-schedules/${id}`);
   }
 
-  // User Interests
+  // User Interests - using your existing database data
   async getUserInterests() {
     return this.request<{
       interests: Array<{
@@ -342,6 +349,19 @@ class ApiService {
     }>(`/user-interests/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Database stats (development only)
+  async getStats() {
+    return this.request<{
+      stats: {
+        buses: number;
+        routes: number;
+        users: number;
+        schedules: number;
+        pickupPoints: number;
+      };
+    }>('/stats');
   }
 }
 

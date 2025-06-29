@@ -9,7 +9,6 @@ import connectDB from './config/database';
 import { specs, swaggerUi } from './config/swagger';
 import { createAdminUser } from './utils/createAdmin';
 import { startLocationScheduler, startLocationHistoryCleanup } from './utils/locationScheduler';
-import { seedDatabase } from './utils/seedData';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -116,15 +115,28 @@ app.get('/', (req, res) => {
   });
 });
 
-// Seed database endpoint (development only)
+// Database stats endpoint (development only)
 if (process.env.NODE_ENV === 'development') {
-  app.post('/api/seed', async (req, res) => {
+  app.get('/api/stats', async (req, res) => {
     try {
-      await seedDatabase();
-      res.json({ message: 'Database seeded successfully' });
+      const Bus = (await import('./models/Bus')).default;
+      const Route = (await import('./models/Route')).default;
+      const User = (await import('./models/User')).default;
+      const BusSchedule = (await import('./models/BusSchedule')).default;
+      const PickupPoint = (await import('./models/PickupPoint')).default;
+      
+      const stats = {
+        buses: await Bus.countDocuments(),
+        routes: await Route.countDocuments(),
+        users: await User.countDocuments(),
+        schedules: await BusSchedule.countDocuments(),
+        pickupPoints: await PickupPoint.countDocuments(),
+      };
+      
+      res.json({ stats });
     } catch (error) {
-      console.error('Seeding error:', error);
-      res.status(500).json({ error: 'Failed to seed database' });
+      console.error('Stats error:', error);
+      res.status(500).json({ error: 'Failed to get stats' });
     }
   });
 }
@@ -156,14 +168,19 @@ const startServer = async () => {
     // Create admin user if not exists
     await createAdminUser();
     
-    // Check if we need to seed the database
+    // Check existing data in database
     const Bus = (await import('./models/Bus')).default;
-    const busCount = await Bus.countDocuments();
+    const Route = (await import('./models/Route')).default;
+    const User = (await import('./models/User')).default;
     
-    if (busCount === 0) {
-      console.log('No buses found in database, seeding with sample data...');
-      await seedDatabase();
-    }
+    const busCount = await Bus.countDocuments();
+    const routeCount = await Route.countDocuments();
+    const userCount = await User.countDocuments();
+    
+    console.log(`📊 Database Status:`);
+    console.log(`   - Buses: ${busCount}`);
+    console.log(`   - Routes: ${routeCount}`);
+    console.log(`   - Users: ${userCount}`);
     
     // Start background schedulers
     startLocationScheduler();
@@ -176,7 +193,7 @@ const startServer = async () => {
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
       console.log(`📱 CORS enabled for mobile development`);
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🌱 Seed endpoint: POST http://localhost:${PORT}/api/seed`);
+        console.log(`📊 Stats endpoint: GET http://localhost:${PORT}/api/stats`);
       }
     });
   } catch (error) {

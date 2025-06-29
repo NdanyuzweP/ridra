@@ -61,32 +61,36 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
   };
 
   const transformBackendBusToFrontendBus = (backendBus: BackendBus, distance?: number): Bus => {
-    // Generate realistic destination based on route or use defaults
-    const destinations = [
-      'Downtown/CBD', 'Nyabugogo Bus Park', 'Kinyinya Terminal', 
-      'Musave', 'Batsinda Terminal', 'Masaka Terminal', 'Kabuga Bus Park'
-    ];
-    const nextStops = [
-      'Kimironko Market', 'Town Center', 'Remera', 'Kicukiro Center', 
-      'Nyamirambo', 'Gisozi', 'Kanombe'
-    ];
+    // Use actual route data from your database
+    const routeName = backendBus.routeId?.name || `Bus ${backendBus.plateNumber}`;
+    const routeDescription = backendBus.routeId?.description || 'Route Description';
+    
+    // Use actual driver data from your database
+    const driverName = backendBus.driverId?.name || 'Driver';
+    
+    // Calculate ETA based on distance and estimated duration
+    let eta = Math.floor(Math.random() * 20) + 5; // Default fallback
+    if (distance && backendBus.routeId?.estimatedDuration) {
+      // Use route's estimated duration and distance to calculate ETA
+      eta = Math.max(Math.floor(distance * 3), 2); // Minimum 2 minutes
+    }
 
     return {
       id: backendBus._id,
-      route: backendBus.routeId?.name || `Route ${backendBus.plateNumber}`,
-      destination: backendBus.routeId?.description || destinations[Math.floor(Math.random() * destinations.length)],
+      route: routeName,
+      destination: routeDescription,
       currentLocation: {
         latitude: backendBus.currentLocation.latitude || -1.9441,
         longitude: backendBus.currentLocation.longitude || 30.0619,
       },
-      nextStop: nextStops[Math.floor(Math.random() * nextStops.length)],
-      eta: distance ? Math.max(Math.floor(distance * 3), 2) : Math.floor(Math.random() * 20) + 5,
+      nextStop: 'Next Stop', // You can enhance this with actual pickup point data
+      eta,
       capacity: backendBus.capacity || 30,
       currentPassengers: Math.floor(Math.random() * (backendBus.capacity || 25)),
       isActive: backendBus.isActive && backendBus.isOnline,
       interested: Math.floor(Math.random() * 10),
-      fare: Math.floor(Math.random() * 300) + 250, // 250-550 RWF
-      schedule: '05:00–23:00',
+      fare: 400, // You can add fare to your bus/route model
+      schedule: '05:00–23:00', // You can enhance this with actual schedule data
       distance: distance,
     };
   };
@@ -106,7 +110,7 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
       currentPassengers: Math.floor(Math.random() * 25),
       isActive: apiBus.isOnline,
       interested: Math.floor(Math.random() * 10),
-      fare: Math.floor(Math.random() * 300) + 250,
+      fare: 400,
       schedule: '05:00–23:00',
       distance: apiBus.distance,
     };
@@ -117,6 +121,8 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
       setLoading(true);
       setError(null);
 
+      console.log('Fetching buses from your database...');
+
       if (userLocation) {
         // Try to fetch nearby buses first
         try {
@@ -125,6 +131,7 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
             userLocation.longitude,
             15 // 15km radius
           );
+          console.log('Found nearby buses:', response.buses.length);
           const transformedBuses = response.buses.map(transformApiBusToFrontendBus);
           setBuses(transformedBuses);
           return;
@@ -133,52 +140,46 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
         }
       }
 
-      // Fallback to all buses
-      try {
-        const response = await apiService.getBuses();
-        console.log('Fetched buses from backend:', response.buses.length);
-        
-        let transformedBuses = response.buses
-          .filter(bus => bus.isActive)
-          .map(bus => {
-            let distance: number | undefined;
-            if (userLocation && bus.currentLocation.latitude && bus.currentLocation.longitude) {
-              distance = calculateDistance(
-                userLocation.latitude,
-                userLocation.longitude,
-                bus.currentLocation.latitude,
-                bus.currentLocation.longitude
-              );
-            }
-            return transformBackendBusToFrontendBus(bus, distance);
-          });
-
-        // Sort by distance if user location is available
-        if (userLocation) {
-          transformedBuses = transformedBuses
-            .filter(bus => !bus.distance || bus.distance <= 20) // Within 20km
-            .sort((a, b) => (a.distance || 999) - (b.distance || 999));
-        }
-
-        setBuses(transformedBuses);
-      } catch (busesError) {
-        console.log('All buses API failed, using fallback data:', busesError);
-        throw busesError;
+      // Fetch all buses from your database
+      const response = await apiService.getBuses();
+      console.log('Fetched buses from your database:', response.buses.length);
+      
+      if (response.buses.length === 0) {
+        console.log('No buses found in your database');
+        setError('No buses found in database. Please add some buses first.');
+        setBuses([]);
+        return;
       }
+      
+      let transformedBuses = response.buses
+        .filter(bus => bus.isActive)
+        .map(bus => {
+          let distance: number | undefined;
+          if (userLocation && bus.currentLocation.latitude && bus.currentLocation.longitude) {
+            distance = calculateDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              bus.currentLocation.latitude,
+              bus.currentLocation.longitude
+            );
+          }
+          return transformBackendBusToFrontendBus(bus, distance);
+        });
+
+      // Sort by distance if user location is available
+      if (userLocation) {
+        transformedBuses = transformedBuses
+          .filter(bus => !bus.distance || bus.distance <= 20) // Within 20km
+          .sort((a, b) => (a.distance || 999) - (b.distance || 999));
+      }
+
+      console.log('Transformed buses for frontend:', transformedBuses.length);
+      setBuses(transformedBuses);
 
     } catch (err: any) {
-      console.error('Error fetching buses:', err);
-      setError(err.message || 'Failed to fetch buses');
-      
-      // Fallback to mock data if all API calls fail
-      try {
-        const { generateRealisticBuses } = await import('@/utils/rwandaBusData');
-        const mockBuses = generateRealisticBuses(userLocation);
-        setBuses(mockBuses);
-        console.log('Using mock bus data:', mockBuses.length);
-      } catch (mockError) {
-        console.error('Failed to load mock data:', mockError);
-      }
+      console.error('Error fetching buses from your database:', err);
+      setError(err.message || 'Failed to fetch buses from database');
+      setBuses([]);
     } finally {
       setLoading(false);
     }
