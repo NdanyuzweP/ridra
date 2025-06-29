@@ -4,8 +4,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from '@/contexts/LocationContext';
+import { useBuses } from '@/hooks/useBuses';
+import { useUserInterests } from '@/hooks/useUserInterests';
 import { useState, useEffect } from 'react';
-import { generateRealisticBuses, findNearestBuses, getRecommendedRoutes } from '@/utils/rwandaBusData';
 import { Bus } from '@/types/bus';
 import { MapPin, Clock, Users, Heart, Navigation, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { LocationPermissionModal } from '@/components/LocationPermissionModal';
@@ -15,14 +16,9 @@ export default function Home() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { location, loading: locationLoading, requestLocation, hasPermission } = useLocation();
-  const [buses, setBuses] = useState<Bus[]>([]);
-  const [interestedBuses, setInterestedBuses] = useState<Set<string>>(new Set());
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
+  const { interests, showInterest, removeInterest } = useUserInterests();
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [recommendedRoutes, setRecommendedRoutes] = useState<any[]>([]);
-
-  useEffect(() => {
-    loadBusData();
-  }, [location]);
 
   useEffect(() => {
     if (!hasPermission && !location) {
@@ -30,38 +26,31 @@ export default function Home() {
     }
   }, [hasPermission, location]);
 
-  const loadBusData = () => {
-    const allBuses = generateRealisticBuses(location || undefined);
+  const handleShowInterest = async (busId: string) => {
+    // For now, we'll use mock data since we need bus schedule and pickup point IDs
+    // In a real implementation, you'd get these from the bus data
+    const mockScheduleId = `schedule_${busId}`;
+    const mockPickupPointId = `pickup_${busId}`;
     
-    if (location) {
-      // Show nearest buses first
-      const nearestBuses = findNearestBuses(location, allBuses, 10);
-      setBuses(nearestBuses.slice(0, 8));
-      
-      // Get recommended routes based on location
-      const routes = getRecommendedRoutes(location);
-      setRecommendedRoutes(routes.slice(0, 3));
+    const existingInterest = interests.find(interest => 
+      interest.busScheduleId === mockScheduleId
+    );
+    
+    if (existingInterest) {
+      await removeInterest(existingInterest.id);
     } else {
-      // Show all active buses
-      setBuses(allBuses.filter(bus => bus.isActive).slice(0, 8));
+      await showInterest(mockScheduleId, mockPickupPointId);
     }
-  };
-
-  const handleShowInterest = (busId: string) => {
-    setInterestedBuses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(busId)) {
-        newSet.delete(busId);
-      } else {
-        newSet.add(busId);
-      }
-      return newSet;
-    });
   };
 
   const handleLocationRequest = async () => {
     setShowLocationModal(false);
     await requestLocation();
+  };
+
+  const isInterestedInBus = (busId: string) => {
+    const mockScheduleId = `schedule_${busId}`;
+    return interests.some(interest => interest.busScheduleId === mockScheduleId);
   };
 
   const renderBusCard = ({ item: bus }: { item: Bus }) => (
@@ -111,44 +100,46 @@ export default function Home() {
         <Pressable
           style={[
             styles.interestButton,
-            interestedBuses.has(bus.id) && { backgroundColor: theme.primary }
+            isInterestedInBus(bus.id) && { backgroundColor: theme.primary }
           ]}
           onPress={() => handleShowInterest(bus.id)}
         >
           <Heart
             size={16}
-            color={interestedBuses.has(bus.id) ? theme.background : theme.primary}
-            fill={interestedBuses.has(bus.id) ? theme.background : 'none'}
+            color={isInterestedInBus(bus.id) ? theme.background : theme.primary}
+            fill={isInterestedInBus(bus.id) ? theme.background : 'none'}
           />
           <Text style={[
             styles.interestText,
-            { color: interestedBuses.has(bus.id) ? theme.background : theme.primary }
+            { color: isInterestedInBus(bus.id) ? theme.background : theme.primary }
           ]}>
-            {interestedBuses.has(bus.id) ? 'Interested' : t('showInterest')}
+            {isInterestedInBus(bus.id) ? 'Interested' : t('showInterest')}
           </Text>
         </Pressable>
       </View>
     </View>
   );
 
-  const renderRecommendedRoute = (route: any, index: number) => (
-    <View key={index} style={[styles.routeCard, { backgroundColor: theme.surface }]}>
-      <View style={styles.routeHeader}>
-        <Text style={[styles.routeNumber, { color: theme.primary }]}>
-          Route {route.route}
-        </Text>
-        <Text style={[styles.routeFare, { color: theme.text }]}>
-          {route.fare} RWF
-        </Text>
-      </View>
-      <Text style={[styles.routeDestination, { color: theme.text }]}>
-        {route.destination}
-      </Text>
-      <Text style={[styles.routeSchedule, { color: theme.textSecondary }]}>
-        {route.schedule}
-      </Text>
-    </View>
-  );
+  if (busesError) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.errorContainer}>
+          <AlertCircle size={48} color={theme.error} />
+          <Text style={[styles.errorText, { color: theme.error }]}>
+            {busesError}
+          </Text>
+          <Pressable
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={refetch}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.background }]}>
+              Retry
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -208,7 +199,7 @@ export default function Home() {
           </View>
           <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.statNumber, { color: theme.primary }]}>
-              {interestedBuses.size}
+              {interests.length}
             </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
               Interested
@@ -216,26 +207,19 @@ export default function Home() {
           </View>
         </View>
 
-        {recommendedRoutes.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Recommended Routes
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.routesContainer}>
-                {recommendedRoutes.map(renderRecommendedRoute)}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             {location ? 'Buses Near You' : t('nearbyBuses')}
           </Text>
-          {buses.length > 0 ? (
+          {busesLoading ? (
+            <View style={[styles.loadingState, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.loadingText, { color: theme.text }]}>
+                Loading buses...
+              </Text>
+            </View>
+          ) : buses.length > 0 ? (
             <FlatList
-              data={buses}
+              data={buses.slice(0, 8)}
               renderItem={renderBusCard}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
@@ -329,38 +313,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Inter-Bold',
     marginBottom: 16,
-  },
-  routesContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  routeCard: {
-    padding: 16,
-    borderRadius: 12,
-    width: 200,
-  },
-  routeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  routeNumber: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
-  routeFare: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  routeDestination: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 4,
-  },
-  routeSchedule: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
   },
   busCard: {
     padding: 16,
@@ -459,5 +411,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
+  },
+  loadingState: {
+    padding: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
   },
 });

@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiService } from '@/services/api';
 
 interface User {
   id: string;
   name: string;
   email: string;
   phone: string;
+  role: string;
 }
 
 interface AuthContextType {
@@ -29,8 +31,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadStoredUser = async () => {
     try {
       const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
+      const storedToken = await AsyncStorage.getItem('authToken');
+      
+      if (storedUser && storedToken) {
         setUser(JSON.parse(storedUser));
+        // Verify token is still valid by fetching profile
+        try {
+          const profileResponse = await apiService.getProfile();
+          setUser(profileResponse.user);
+        } catch (error) {
+          // Token is invalid, clear stored data
+          await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('authToken');
+          setUser(null);
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -43,19 +57,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await apiService.login(email, password);
       
-      // Mock user data - in real app, this would come from your backend
       const userData: User = {
-        id: '1',
-        name: 'John Doe',
-        email,
-        phone: '+250 788 123 456'
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        phone: response.user.phone,
+        role: response.user.role,
       };
       
       setUser(userData);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('authToken', response.token);
+      
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -69,18 +84,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await apiService.signup(name, email, phone, password);
       
       const userData: User = {
-        id: Date.now().toString(),
-        name,
-        email,
-        phone
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        phone: response.user.phone,
+        role: response.user.role,
       };
       
       setUser(userData);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('authToken', response.token);
+      
       return true;
     } catch (error) {
       console.error('Signup error:', error);
@@ -94,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setUser(null);
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('authToken');
     } catch (error) {
       console.error('Logout error:', error);
     }

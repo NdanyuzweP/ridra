@@ -3,8 +3,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation } from '@/contexts/LocationContext';
+import { useBuses } from '@/hooks/useBuses';
 import { useState, useEffect } from 'react';
-import { generateRealisticBuses, findNearestBuses } from '@/utils/rwandaBusData';
 import { Bus as BusType } from '@/types/bus';
 import { Navigation, MapPin, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { GoogleMapView } from '@/components/GoogleMapView';
@@ -14,32 +14,15 @@ export default function Map() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { location, loading: locationLoading, requestLocation, hasPermission, error } = useLocation();
-  const [buses, setBuses] = useState<BusType[]>([]);
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
   const [selectedBus, setSelectedBus] = useState<BusType | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
-
-  useEffect(() => {
-    loadBusData();
-  }, [location]);
 
   useEffect(() => {
     if (!hasPermission && !location) {
       setShowLocationModal(true);
     }
   }, [hasPermission, location]);
-
-  const loadBusData = () => {
-    const allBuses = generateRealisticBuses(location || undefined);
-    
-    if (location) {
-      // Show buses within 15km radius
-      const nearbyBuses = findNearestBuses(location, allBuses, 15);
-      setBuses(nearbyBuses);
-    } else {
-      // Show all active buses
-      setBuses(allBuses.filter(bus => bus.isActive));
-    }
-  };
 
   const handleBusPress = (bus: BusType) => {
     setSelectedBus(bus);
@@ -50,6 +33,27 @@ export default function Map() {
     await requestLocation();
   };
 
+  if (busesError) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.errorContainer}>
+          <AlertCircle size={48} color={theme.error} />
+          <Text style={[styles.errorText, { color: theme.error }]}>
+            {busesError}
+          </Text>
+          <Pressable
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={refetch}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.background }]}>
+              Retry
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
@@ -58,7 +62,7 @@ export default function Map() {
             {t('map')}
           </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {buses.length} buses tracked
+            {busesLoading ? 'Loading...' : `${buses.length} buses tracked`}
           </Text>
         </View>
         
@@ -283,6 +287,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   busDetailValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
   },

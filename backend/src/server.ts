@@ -8,6 +8,7 @@ import 'express-async-errors';
 import connectDB from './config/database';
 import { specs, swaggerUi } from './config/swagger';
 import { createAdminUser } from './utils/createAdmin';
+import { startLocationScheduler, startLocationHistoryCleanup } from './utils/locationScheduler';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -23,21 +24,62 @@ import busLocationRoutes from './routes/busLocations';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // Increased limit for development
   message: 'Too many requests from this IP, please try again later.',
 });
 
+// CORS configuration for mobile app
+const corsOptions = {
+  origin: function (origin: any, callback: any) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:8081', // Expo development server
+      'http://localhost:19006', // Expo web
+      'http://localhost:3000', // React web
+      'exp://192.168.1.100:8081', // Expo on physical device (adjust IP)
+      'exp://localhost:8081', // Expo localhost
+    ];
+    
+    // Add any additional origins from environment variable
+    if (process.env.CORS_ORIGIN) {
+      allowedOrigins.push(...process.env.CORS_ORIGIN.split(','));
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // Disable for development
+}));
+app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware for development
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
@@ -57,7 +99,19 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Ridra Backend API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    port: PORT
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to Ridra Bus Tracking API',
+    version: '1.0.0',
+    documentation: '/api-docs',
+    health: '/health'
   });
 });
 
@@ -88,10 +142,16 @@ const startServer = async () => {
     // Create admin user if not exists
     await createAdminUser();
     
+    // Start background schedulers
+    startLocationScheduler();
+    startLocationHistoryCleanup();
+    
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔍 Health Check: http://localhost:${PORT}/health`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📱 CORS enabled for mobile development`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

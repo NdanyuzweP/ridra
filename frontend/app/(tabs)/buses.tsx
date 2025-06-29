@@ -3,8 +3,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation } from '@/contexts/LocationContext';
+import { useBuses } from '@/hooks/useBuses';
+import { useUserInterests } from '@/hooks/useUserInterests';
 import { useState, useEffect } from 'react';
-import { generateRealisticBuses, findNearestBuses, RWANDA_BUS_ROUTES } from '@/utils/rwandaBusData';
 import { Bus as BusType } from '@/types/bus';
 import { Bus, MapPin, Clock, Users, Heart, Filter, Navigation, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { LocationPermissionModal } from '@/components/LocationPermissionModal';
@@ -13,15 +14,11 @@ export default function Buses() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { location, loading: locationLoading, requestLocation, hasPermission } = useLocation();
-  const [buses, setBuses] = useState<BusType[]>([]);
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
+  const { interests, showInterest, removeInterest } = useUserInterests();
   const [filteredBuses, setFilteredBuses] = useState<BusType[]>([]);
-  const [interestedBuses, setInterestedBuses] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'active' | 'nearby' | 'affordable'>('all');
   const [showLocationModal, setShowLocationModal] = useState(false);
-
-  useEffect(() => {
-    loadBusData();
-  }, [location]);
 
   useEffect(() => {
     applyFilter();
@@ -33,11 +30,6 @@ export default function Buses() {
     }
   }, [hasPermission, location, filter]);
 
-  const loadBusData = () => {
-    const allBuses = generateRealisticBuses(location || undefined);
-    setBuses(allBuses);
-  };
-
   const applyFilter = () => {
     let filtered = buses;
     
@@ -47,8 +39,7 @@ export default function Buses() {
         break;
       case 'nearby':
         if (location) {
-          const nearbyBuses = findNearestBuses(location, buses, 10);
-          filtered = nearbyBuses;
+          filtered = buses.filter(bus => bus.distance && bus.distance <= 5);
         } else {
           filtered = buses.filter(bus => bus.eta <= 15);
         }
@@ -63,21 +54,29 @@ export default function Buses() {
     setFilteredBuses(filtered);
   };
 
-  const handleShowInterest = (busId: string) => {
-    setInterestedBuses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(busId)) {
-        newSet.delete(busId);
-      } else {
-        newSet.add(busId);
-      }
-      return newSet;
-    });
+  const handleShowInterest = async (busId: string) => {
+    const mockScheduleId = `schedule_${busId}`;
+    const mockPickupPointId = `pickup_${busId}`;
+    
+    const existingInterest = interests.find(interest => 
+      interest.busScheduleId === mockScheduleId
+    );
+    
+    if (existingInterest) {
+      await removeInterest(existingInterest.id);
+    } else {
+      await showInterest(mockScheduleId, mockPickupPointId);
+    }
   };
 
   const handleLocationRequest = async () => {
     setShowLocationModal(false);
     await requestLocation();
+  };
+
+  const isInterestedInBus = (busId: string) => {
+    const mockScheduleId = `schedule_${busId}`;
+    return interests.some(interest => interest.busScheduleId === mockScheduleId);
   };
 
   const getStatusColor = (bus: BusType) => {
@@ -195,7 +194,7 @@ export default function Buses() {
           style={[
             styles.interestButton,
             { 
-              backgroundColor: interestedBuses.has(bus.id) ? theme.primary : 'transparent',
+              backgroundColor: isInterestedInBus(bus.id) ? theme.primary : 'transparent',
               borderColor: theme.primary 
             }
           ]}
@@ -203,19 +202,40 @@ export default function Buses() {
         >
           <Heart
             size={16}
-            color={interestedBuses.has(bus.id) ? theme.background : theme.primary}
-            fill={interestedBuses.has(bus.id) ? theme.background : 'none'}
+            color={isInterestedInBus(bus.id) ? theme.background : theme.primary}
+            fill={isInterestedInBus(bus.id) ? theme.background : 'none'}
           />
           <Text style={[
             styles.interestButtonText,
-            { color: interestedBuses.has(bus.id) ? theme.background : theme.primary }
+            { color: isInterestedInBus(bus.id) ? theme.background : theme.primary }
           ]}>
-            {bus.interested + (interestedBuses.has(bus.id) ? 1 : 0)}
+            {bus.interested + (isInterestedInBus(bus.id) ? 1 : 0)}
           </Text>
         </Pressable>
       </View>
     </View>
   );
+
+  if (busesError) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.errorContainer}>
+          <AlertCircle size={48} color={theme.error} />
+          <Text style={[styles.errorText, { color: theme.error }]}>
+            {busesError}
+          </Text>
+          <Pressable
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={refetch}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.background }]}>
+              Retry
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -263,27 +283,35 @@ export default function Buses() {
         {renderFilterButton('affordable', 'Affordable')}
       </View>
 
-      <FlatList
-        data={filteredBuses}
-        renderItem={renderBusCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={() => (
-          <View style={[styles.emptyState, { backgroundColor: theme.surface }]}>
-            <Bus size={48} color={theme.textSecondary} />
-            <Text style={[styles.emptyStateText, { color: theme.text }]}>
-              No buses found
-            </Text>
-            <Text style={[styles.emptyStateSubtext, { color: theme.textSecondary }]}>
-              {filter === 'nearby' && !location 
-                ? 'Enable location to find nearby buses'
-                : 'Try adjusting your filters or check back later'
-              }
-            </Text>
-          </View>
-        )}
-      />
+      {busesLoading ? (
+        <View style={[styles.loadingState, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            Loading buses...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredBuses}
+          renderItem={renderBusCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() => (
+            <View style={[styles.emptyState, { backgroundColor: theme.surface }]}>
+              <Bus size={48} color={theme.textSecondary} />
+              <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                No buses found
+              </Text>
+              <Text style={[styles.emptyStateSubtext, { color: theme.textSecondary }]}>
+                {filter === 'nearby' && !location 
+                  ? 'Enable location to find nearby buses'
+                  : 'Try adjusting your filters or check back later'
+                }
+              </Text>
+            </View>
+          )}
+        />
+      )}
 
       <LocationPermissionModal
         visible={showLocationModal}
@@ -466,5 +494,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
+  },
+  loadingState: {
+    padding: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 24,
+    marginTop: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
   },
 });
