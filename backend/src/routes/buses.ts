@@ -3,6 +3,7 @@ import {
   createBus,
   getAllBuses,
   getBusById,
+  getDriverBus,
   updateBus,
   deleteBus,
 } from '../controllers/busController';
@@ -34,6 +35,8 @@ const router = express.Router();
  *                 type: string
  *               routeId:
  *                 type: string
+ *               fare:
+ *                 type: number
  *     responses:
  *       201:
  *         description: Bus created successfully
@@ -51,6 +54,22 @@ router.post('/', authenticate, authorize('admin'), validateBus, createBus);
  *         description: List of all buses
  */
 router.get('/', getAllBuses);
+
+/**
+ * @swagger
+ * /api/buses/driver/my-bus:
+ *   get:
+ *     summary: Get driver's assigned bus
+ *     tags: [Buses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Driver's bus details
+ *       404:
+ *         description: No bus assigned
+ */
+router.get('/driver/my-bus', authenticate, authorize('driver'), getDriverBus);
 
 /**
  * @swagger

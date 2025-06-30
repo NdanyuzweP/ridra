@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Ridra Driver",
+    "slug": "ridra-driver-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/driver-icon.png",
+    "scheme": "ridra-driver",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyBym8ra9Gj5Yxhef0BSkuNzyAHJq5lyH5A"
+      }
+    },
+    "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBym8ra9Gj5Yxhef0BSkuNzyAHJq5lyH5A"
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/driver-icon.png"
+    },
+    "plugins": [
+      "expo-router", 
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to track your bus location for passengers."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

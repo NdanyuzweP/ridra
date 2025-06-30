@@ -73,6 +73,24 @@ export const getBusById = async (req: Request, res: Response) => {
   }
 };
 
+export const getDriverBus = async (req: Request, res: Response) => {
+  try {
+    const driverId = (req as any).user.id;
+    
+    const bus = await Bus.findOne({ driverId, isActive: true })
+      .populate('driverId', 'name email phone')
+      .populate('routeId', 'name description fare estimatedDuration');
+
+    if (!bus) {
+      return res.status(404).json({ error: 'No bus assigned to you' });
+    }
+
+    res.json({ bus });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 export const updateBus = async (req: Request, res: Response) => {
   try {
     const { plateNumber, capacity, driverId, routeId, fare } = req.body;
