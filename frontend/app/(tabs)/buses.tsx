@@ -14,7 +14,7 @@ export default function Buses() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { location, loading: locationLoading, requestLocation, hasPermission } = useLocation();
-  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined, false); // false = all buses
   const { interests, showInterest, removeInterest } = useUserInterests();
   const [filteredBuses, setFilteredBuses] = useState<BusType[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'nearby' | 'affordable'>('all');
@@ -122,6 +122,7 @@ export default function Buses() {
         </View>
         <View style={styles.busMainInfo}>
           <Text style={[styles.busRoute, { color: theme.text }]}>{bus.route}</Text>
+          <Text style={[styles.plateNumber, { color: theme.primary }]}>{bus.plateNumber}</Text>
           <View style={styles.busDestination}>
             <MapPin size={14} color={theme.textSecondary} />
             <Text style={[styles.destinationText, { color: theme.textSecondary }]}>
@@ -242,7 +243,7 @@ export default function Buses() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.title, { color: theme.text }]}>
-            {t('buses')}
+            All Available Buses
           </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {filteredBuses.length} buses found
@@ -286,7 +287,7 @@ export default function Buses() {
       {busesLoading ? (
         <View style={[styles.loadingState, { backgroundColor: theme.surface }]}>
           <Text style={[styles.loadingText, { color: theme.text }]}>
-            Loading buses...
+            Loading all buses...
           </Text>
         </View>
       ) : (
@@ -395,6 +396,11 @@ const styles = StyleSheet.create({
   busRoute: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+    marginBottom: 2,
+  },
+  plateNumber: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
   busDestination: {

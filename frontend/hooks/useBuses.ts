@@ -35,7 +35,7 @@ interface BackendBus {
   isOnline: boolean;
 }
 
-export function useBuses(userLocation?: { latitude: number; longitude: number }) {
+export function useBuses(userLocation?: { latitude: number; longitude: number }, showNearbyOnly: boolean = false) {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
 
   const transformBackendBusToFrontendBus = (backendBus: BackendBus, distance?: number): Bus => {
     // Use actual route data from your database
-    const routeName = backendBus.routeId?.name || `Bus ${backendBus.plateNumber}`;
+    const routeName = backendBus.routeId?.name || `Route ${backendBus.plateNumber}`;
     const routeDescription = backendBus.routeId?.description || 'Route Description';
     
     // Use actual driver data from your database
@@ -77,6 +77,7 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
 
     return {
       id: backendBus._id,
+      plateNumber: backendBus.plateNumber, // Use actual plate number from database
       route: routeName,
       destination: routeDescription,
       currentLocation: {
@@ -98,7 +99,8 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
   const transformApiBusToFrontendBus = (apiBus: ApiBus): Bus => {
     return {
       id: apiBus.id,
-      route: apiBus.route?.name || `Bus ${apiBus.plateNumber}`,
+      plateNumber: apiBus.plateNumber, // Use actual plate number from API
+      route: apiBus.route?.name || `Route ${apiBus.plateNumber}`,
       destination: apiBus.route?.description || 'Unknown Destination',
       currentLocation: {
         latitude: apiBus.currentLocation.latitude || -1.9441,
@@ -123,13 +125,13 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
 
       console.log('Fetching buses from your database...');
 
-      if (userLocation) {
-        // Try to fetch nearby buses first
+      if (userLocation && showNearbyOnly) {
+        // For nearby buses only (home page)
         try {
           const response = await apiService.getNearbyBuses(
             userLocation.latitude,
             userLocation.longitude,
-            15 // 15km radius
+            10 // 10km radius for nearby
           );
           console.log('Found nearby buses:', response.buses.length);
           const transformedBuses = response.buses.map(transformApiBusToFrontendBus);
@@ -166,11 +168,18 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
           return transformBackendBusToFrontendBus(bus, distance);
         });
 
-      // Sort by distance if user location is available
-      if (userLocation) {
+      // For home page, only show nearby buses (within 10km)
+      if (showNearbyOnly && userLocation) {
         transformedBuses = transformedBuses
-          .filter(bus => !bus.distance || bus.distance <= 20) // Within 20km
-          .sort((a, b) => (a.distance || 999) - (b.distance || 999));
+          .filter(bus => !bus.distance || bus.distance <= 10) // Within 10km for home
+          .sort((a, b) => (a.distance || 999) - (b.distance || 999))
+          .slice(0, 8); // Limit to 8 buses for home page
+      } else {
+        // For buses page, show all buses but sort by distance if location available
+        if (userLocation) {
+          transformedBuses = transformedBuses
+            .sort((a, b) => (a.distance || 999) - (b.distance || 999));
+        }
       }
 
       console.log('Transformed buses for frontend:', transformedBuses.length);
@@ -192,7 +201,7 @@ export function useBuses(userLocation?: { latitude: number; longitude: number })
     const interval = setInterval(fetchBuses, 30000);
     
     return () => clearInterval(interval);
-  }, [userLocation]);
+  }, [userLocation, showNearbyOnly]);
 
   const refetch = () => {
     fetchBuses();

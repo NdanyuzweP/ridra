@@ -1,5 +1,6 @@
 export interface Bus {
   id: string;
+  plateNumber: string; // Added plate number
   route: string;
   destination: string;
   currentLocation: {

@@ -8,7 +8,7 @@ import { useBuses } from '@/hooks/useBuses';
 import { useUserInterests } from '@/hooks/useUserInterests';
 import { useState, useEffect } from 'react';
 import { Bus } from '@/types/bus';
-import { MapPin, Clock, Users, Heart, Navigation, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { MapPin, Clock, Users, Heart, Navigation, CircleAlert as AlertCircle, Bus as BusIcon } from 'lucide-react-native';
 import { LocationPermissionModal } from '@/components/LocationPermissionModal';
 
 export default function Home() {
@@ -16,7 +16,7 @@ export default function Home() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { location, loading: locationLoading, requestLocation, hasPermission } = useLocation();
-  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined, true); // true = nearby only
   const { interests, showInterest, removeInterest } = useUserInterests();
   const [showLocationModal, setShowLocationModal] = useState(false);
 
@@ -56,8 +56,12 @@ export default function Home() {
   const renderBusCard = ({ item: bus }: { item: Bus }) => (
     <View style={[styles.busCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.busHeader}>
+        <View style={styles.busIconContainer}>
+          <BusIcon size={20} color={theme.primary} />
+        </View>
         <View style={styles.busInfo}>
           <Text style={[styles.busRoute, { color: theme.text }]}>{bus.route}</Text>
+          <Text style={[styles.plateNumber, { color: theme.primary }]}>{bus.plateNumber}</Text>
           <View style={styles.busDetails}>
             <MapPin size={14} color={theme.textSecondary} />
             <Text style={[styles.busDestination, { color: theme.textSecondary }]}>
@@ -186,7 +190,7 @@ export default function Home() {
               {buses.length}
             </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              {location ? 'Nearby Buses' : 'Active Buses'}
+              Nearby Buses
             </Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
@@ -209,17 +213,17 @@ export default function Home() {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {location ? 'Buses Near You' : t('nearbyBuses')}
+            Buses Near You
           </Text>
           {busesLoading ? (
             <View style={[styles.loadingState, { backgroundColor: theme.surface }]}>
               <Text style={[styles.loadingText, { color: theme.text }]}>
-                Loading buses...
+                Loading nearby buses...
               </Text>
             </View>
           ) : buses.length > 0 ? (
             <FlatList
-              data={buses.slice(0, 8)}
+              data={buses}
               renderItem={renderBusCard}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
@@ -229,10 +233,10 @@ export default function Home() {
             <View style={[styles.emptyState, { backgroundColor: theme.surface }]}>
               <MapPin size={48} color={theme.textSecondary} />
               <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                No buses found
+                No nearby buses found
               </Text>
               <Text style={[styles.emptyStateSubtext, { color: theme.textSecondary }]}>
-                {location ? 'Try expanding your search area' : 'Enable location to find buses near you'}
+                {location ? 'Try expanding your search area or check the Buses tab for all available buses' : 'Enable location to find buses near you'}
               </Text>
             </View>
           )}
@@ -322,9 +326,12 @@ const styles = StyleSheet.create({
   },
   busHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
+  },
+  busIconContainer: {
+    marginRight: 12,
+    marginTop: 2,
   },
   busInfo: {
     flex: 1,
@@ -332,6 +339,11 @@ const styles = StyleSheet.create({
   busRoute: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+    marginBottom: 2,
+  },
+  plateNumber: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
   busDetails: {

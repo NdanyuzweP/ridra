@@ -14,7 +14,7 @@ export default function Map() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { location, loading: locationLoading, requestLocation, hasPermission, error } = useLocation();
-  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined);
+  const { buses, loading: busesLoading, error: busesError, refetch } = useBuses(location || undefined, false); // false = all buses for map
   const [selectedBus, setSelectedBus] = useState<BusType | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
@@ -116,6 +116,9 @@ export default function Map() {
             <View>
               <Text style={[styles.busDetailsRoute, { color: theme.text }]}>
                 {selectedBus.route}
+              </Text>
+              <Text style={[styles.busDetailsPlate, { color: theme.primary }]}>
+                {selectedBus.plateNumber}
               </Text>
               <Text style={[styles.busDetailsDestination, { color: theme.textSecondary }]}>
                 {selectedBus.destination}
@@ -261,6 +264,11 @@ const styles = StyleSheet.create({
   busDetailsRoute: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
+  },
+  busDetailsPlate: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    marginTop: 2,
   },
   busDetailsDestination: {
     fontSize: 14,
