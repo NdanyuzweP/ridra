@@ -6,7 +6,7 @@ import {
   TrendingUp, 
   Users, 
   Bus, 
-  Route, 
+  Navigation, 
   Activity,
   Calendar,
   DollarSign,
@@ -421,7 +421,7 @@ export default function Analytics() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Route size={16} className="mr-2" style={{ color: theme.secondary }} />
+                <Navigation size={16} className="mr-2" style={{ color: theme.secondary }} />
                 <span style={{ color: theme.textSecondary }}>Active Routes</span>
               </div>
               <span className="font-semibold" style={{ color: theme.text }}>

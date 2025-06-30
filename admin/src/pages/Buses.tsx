@@ -14,7 +14,7 @@ import {
   Activity,
   AlertCircle,
   UserCheck,
-  Route as RouteIcon
+  Navigation as RouteIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

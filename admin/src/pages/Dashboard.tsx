@@ -5,7 +5,7 @@ import {
   Users, 
   UserCheck, 
   Bus, 
-  Route, 
+  Navigation, 
   MapPin, 
   Calendar,
   TrendingUp,
@@ -91,7 +91,7 @@ export default function Dashboard() {
     {
       title: 'Active Routes',
       value: stats?.routes || 0,
-      icon: Route,
+      icon: Navigation,
       color: theme.secondary,
       change: '0%',
       changeType: 'neutral' as const,
@@ -193,7 +193,7 @@ export default function Dashboard() {
                       <span 
                         className={`text-xs font-medium ${
                           stat.changeType === 'positive' ? 'text-success' : 
-                          stat.changeType === 'negative' ? 'text-error' : 'text-muted'
+                          stat.changeType === 'neutral' ? 'text-muted' : 'text-error'
                         }`}
                       >
                         {stat.change}
@@ -317,7 +317,7 @@ export default function Dashboard() {
             {[
               { icon: Users, text: 'New user registered: John Doe', time: '2 minutes ago', type: 'user' },
               { icon: Bus, text: 'Bus RAD 123 A went online', time: '5 minutes ago', type: 'bus' },
-              { icon: Route, text: 'Route 302 schedule updated', time: '10 minutes ago', type: 'route' },
+              { icon: Navigation, text: 'Route 302 schedule updated', time: '10 minutes ago', type: 'route' },
               { icon: UserCheck, text: 'Driver assigned to Bus RAD 456 B', time: '15 minutes ago', type: 'driver' },
               { icon: MapPin, text: 'New pickup point added to Route 305', time: '20 minutes ago', type: 'pickup' },
             ].map((activity, index) => {

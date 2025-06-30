@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
 import { 
-  Route as RouteIcon, 
+  Navigation as RouteIcon, 
   Search, 
   Filter, 
   Plus, 

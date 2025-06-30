@@ -10,7 +10,7 @@ import {
   Trash2, 
   Clock,
   Bus,
-  Route as RouteIcon,
+  Navigation as RouteIcon,
   AlertCircle,
   CheckCircle,
   XCircle,

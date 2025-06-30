@@ -8,7 +8,7 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  Route as RouteIcon,
+  Navigation as RouteIcon,
   AlertCircle,
   Navigation
 } from 'lucide-react';
