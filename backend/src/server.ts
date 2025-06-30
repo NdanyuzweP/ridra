@@ -8,6 +8,7 @@ import 'express-async-errors';
 import connectDB from './config/database';
 import { specs, swaggerUi } from './config/swagger';
 import { createAdminUser } from './utils/createAdmin';
+import { seedDatabase } from './utils/seedData';
 import { startLocationScheduler, startLocationHistoryCleanup } from './utils/locationScheduler';
 
 // Import routes
@@ -124,6 +125,7 @@ if (process.env.NODE_ENV === 'development') {
       const User = (await import('./models/User')).default;
       const BusSchedule = (await import('./models/BusSchedule')).default;
       const PickupPoint = (await import('./models/PickupPoint')).default;
+      const UserInterest = (await import('./models/UserInterest')).default;
       
       const stats = {
         buses: await Bus.countDocuments(),
@@ -131,6 +133,7 @@ if (process.env.NODE_ENV === 'development') {
         users: await User.countDocuments(),
         schedules: await BusSchedule.countDocuments(),
         pickupPoints: await PickupPoint.countDocuments(),
+        userInterests: await UserInterest.countDocuments(),
       };
       
       res.json({ stats });
@@ -168,19 +171,25 @@ const startServer = async () => {
     // Create admin user if not exists
     await createAdminUser();
     
+    // Seed database with sample data if empty
+    await seedDatabase();
+    
     // Check existing data in database
     const Bus = (await import('./models/Bus')).default;
     const Route = (await import('./models/Route')).default;
     const User = (await import('./models/User')).default;
+    const UserInterest = (await import('./models/UserInterest')).default;
     
     const busCount = await Bus.countDocuments();
     const routeCount = await Route.countDocuments();
     const userCount = await User.countDocuments();
+    const interestCount = await UserInterest.countDocuments();
     
     console.log(`📊 Database Status:`);
     console.log(`   - Buses: ${busCount}`);
     console.log(`   - Routes: ${routeCount}`);
     console.log(`   - Users: ${userCount}`);
+    console.log(`   - User Interests: ${interestCount}`);
     
     // Start background schedulers
     startLocationScheduler();

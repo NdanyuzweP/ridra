@@ -30,6 +30,7 @@ export function useUserInterests() {
     } catch (err: any) {
       console.error('Error fetching user interests:', err);
       setError(err.message || 'Failed to fetch user interests');
+      setInterests([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -37,6 +38,7 @@ export function useUserInterests() {
 
   const showInterest = async (busScheduleId: string, pickupPointId: string) => {
     try {
+      console.log('Showing interest in bus schedule:', busScheduleId);
       await apiService.createUserInterest(busScheduleId, pickupPointId);
       await fetchInterests(); // Refresh the list
       return true;
@@ -49,6 +51,7 @@ export function useUserInterests() {
 
   const updateInterest = async (id: string, status: string) => {
     try {
+      console.log('Updating interest status:', id, status);
       await apiService.updateUserInterest(id, status);
       await fetchInterests(); // Refresh the list
       return true;
@@ -61,6 +64,7 @@ export function useUserInterests() {
 
   const removeInterest = async (id: string) => {
     try {
+      console.log('Removing interest:', id);
       await apiService.deleteUserInterest(id);
       await fetchInterests(); // Refresh the list
       return true;

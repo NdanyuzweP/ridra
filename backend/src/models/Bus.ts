@@ -46,6 +46,12 @@ const busSchema = new Schema<IBus>(
         default: 0,
       },
     },
+    fare: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 400, // Default fare in RWF
+    },
     isActive: {
       type: Boolean,
       default: true,

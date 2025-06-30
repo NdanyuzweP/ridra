@@ -23,6 +23,12 @@ const routeSchema = new Schema<IRoute>(
       required: true,
       min: 1,
     },
+    fare: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 400, // Default fare in RWF
+    },
     isActive: {
       type: Boolean,
       default: true,

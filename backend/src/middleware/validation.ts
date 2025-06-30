@@ -36,6 +36,7 @@ export const validateBus = (req: Request, res: Response, next: NextFunction) => 
     capacity: Joi.number().required().min(1),
     driverId: Joi.string().required(),
     routeId: Joi.string().required(),
+    fare: Joi.number().optional().min(0), // Added fare validation
   });
 
   const { error } = schema.validate(req.body);
@@ -50,6 +51,7 @@ export const validateRoute = (req: Request, res: Response, next: NextFunction) =
     name: Joi.string().required(),
     description: Joi.string().optional(),
     estimatedDuration: Joi.number().required().min(1),
+    fare: Joi.number().optional().min(0), // Added fare validation
   });
 
   const { error } = schema.validate(req.body);
@@ -154,6 +156,18 @@ export const validateDriverStatus = (req: Request, res: Response, next: NextFunc
   const schema = Joi.object({
     busId: Joi.string().required(),
     isOnline: Joi.boolean().required(),
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+  next();
+};
+
+export const validateInterestStatus = (req: Request, res: Response, next: NextFunction) => {
+  const schema = Joi.object({
+    status: Joi.string().valid('interested', 'confirmed', 'cancelled').required(),
   });
 
   const { error } = schema.validate(req.body);

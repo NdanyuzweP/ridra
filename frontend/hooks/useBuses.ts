@@ -22,6 +22,7 @@ interface BackendBus {
   _id: string;
   plateNumber: string;
   capacity: number;
+  fare: number; // Added fare field
   driverId: any;
   routeId: any;
   currentLocation: {
@@ -86,11 +87,11 @@ export function useBuses(userLocation?: { latitude: number; longitude: number },
       },
       nextStop: 'Next Stop', // You can enhance this with actual pickup point data
       eta,
-      capacity: backendBus.capacity || 30,
+      capacity: backendBus.capacity, // Use actual capacity from database
       currentPassengers: Math.floor(Math.random() * (backendBus.capacity || 25)),
       isActive: backendBus.isActive && backendBus.isOnline,
       interested: Math.floor(Math.random() * 10),
-      fare: 400, // You can add fare to your bus/route model
+      fare: backendBus.fare || backendBus.routeId?.fare || 400, // Use actual fare from database
       schedule: '05:00–23:00', // You can enhance this with actual schedule data
       distance: distance,
     };

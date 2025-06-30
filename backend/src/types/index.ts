@@ -23,6 +23,7 @@ export interface IBus extends Document {
     speed: number;
     heading: number;
   };
+  fare: number; // Added fare field
   isActive: boolean;
   isOnline: boolean;
   createdAt: Date;
@@ -48,6 +49,7 @@ export interface IRoute extends Document {
   description: string;
   pickupPoints: string[];
   estimatedDuration: number; // in minutes
+  fare: number; // Added fare field for route-based pricing
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

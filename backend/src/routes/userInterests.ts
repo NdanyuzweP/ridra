@@ -6,7 +6,7 @@ import {
   deleteUserInterest,
 } from '../controllers/userInterestController';
 import { authenticate } from '../middleware/auth';
-import { validateUserInterest } from '../middleware/validation';
+import { validateUserInterest, validateInterestStatus } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -77,7 +77,7 @@ router.get('/', authenticate, getUserInterests);
  *       200:
  *         description: Interest updated successfully
  */
-router.put('/:id', authenticate, updateUserInterest);
+router.put('/:id', authenticate, validateInterestStatus, updateUserInterest);
 
 router.delete('/:id', authenticate, deleteUserInterest);
 

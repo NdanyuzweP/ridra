@@ -5,7 +5,7 @@ import Route from '../models/Route';
 
 export const createBus = async (req: Request, res: Response) => {
   try {
-    const { plateNumber, capacity, driverId, routeId } = req.body;
+    const { plateNumber, capacity, driverId, routeId, fare } = req.body;
 
     // Verify driver exists and has driver role
     const driver = await User.findById(driverId);
@@ -24,13 +24,14 @@ export const createBus = async (req: Request, res: Response) => {
       capacity,
       driverId,
       routeId,
+      fare: fare || route.fare || 400, // Use provided fare, route fare, or default
     });
 
     await bus.save();
     
     const populatedBus = await Bus.findById(bus._id)
       .populate('driverId', 'name email phone')
-      .populate('routeId', 'name description');
+      .populate('routeId', 'name description fare');
 
     res.status(201).json({
       message: 'Bus created successfully',
@@ -48,7 +49,7 @@ export const getAllBuses = async (req: Request, res: Response) => {
   try {
     const buses = await Bus.find({ isActive: true })
       .populate('driverId', 'name email phone')
-      .populate('routeId', 'name description');
+      .populate('routeId', 'name description fare');
 
     res.json({ buses });
   } catch (error) {
@@ -60,7 +61,7 @@ export const getBusById = async (req: Request, res: Response) => {
   try {
     const bus = await Bus.findById(req.params.id)
       .populate('driverId', 'name email phone')
-      .populate('routeId', 'name description');
+      .populate('routeId', 'name description fare');
 
     if (!bus) {
       return res.status(404).json({ error: 'Bus not found' });
@@ -74,7 +75,7 @@ export const getBusById = async (req: Request, res: Response) => {
 
 export const updateBus = async (req: Request, res: Response) => {
   try {
-    const { plateNumber, capacity, driverId, routeId } = req.body;
+    const { plateNumber, capacity, driverId, routeId, fare } = req.body;
 
     // Verify driver if provided
     if (driverId) {
@@ -92,12 +93,17 @@ export const updateBus = async (req: Request, res: Response) => {
       }
     }
 
+    const updateData: any = { plateNumber, capacity, driverId, routeId };
+    if (fare !== undefined) {
+      updateData.fare = fare;
+    }
+
     const bus = await Bus.findByIdAndUpdate(
       req.params.id,
-      { plateNumber, capacity, driverId, routeId },
+      updateData,
       { new: true }
     ).populate('driverId', 'name email phone')
-     .populate('routeId', 'name description');
+     .populate('routeId', 'name description fare');
 
     if (!bus) {
       return res.status(404).json({ error: 'Bus not found' });
